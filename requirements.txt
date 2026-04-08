@@ -1,0 +1,45 @@
+# ============================================
+# Forest observation and analysis system
+# Python Dependencies
+# ============================================
+
+# --- Backend Framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-dotenv==1.0.1
+pydantic==2.10.4
+
+# --- Google Earth Engine ---
+earthengine-api==1.4.2
+geemap==0.35.1
+
+# --- Geospatial ---
+folium==0.19.4
+branca==0.8.1
+
+# --- Data Processing ---
+numpy==2.2.1
+pandas==2.2.3
+
+# --- Visualization ---
+plotly==5.24.1
+matplotlib==3.10.0
+
+# --- Frontend ---
+streamlit==1.41.1
+streamlit-folium==0.23.2
+
+# --- ML ---
+scikit-learn==1.6.1
+joblib==1.4.2
+
+# --- HTTP Client ---
+requests==2.32.3
+httpx==0.28.1
+
+# --- Testing ---
+pytest==8.3.4
+pytest-asyncio==0.25.0
+
+# --- Utilities ---
+Pillow==11.1.0
