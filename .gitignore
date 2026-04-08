@@ -20,3 +20,15 @@ __pycache__/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Machine Learning
+ml/models/*.joblib
+ml/models/*.h5
+ml/models/*.keras
+ml/models/*.json
+ml/data/
+
+# Temporary Earth Engine Data
+ee_data/
+*.tif
+*.zip

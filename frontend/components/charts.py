@@ -219,7 +219,6 @@ def create_ndvi_comparison(period1_ndvi: float, period2_ndvi: float) -> go.Figur
         textfont=dict(size=14, color=FOREST_COLORS["text"]),
     ))
 
-    bar_color = FOREST_COLORS["danger"] if change < 0 else FOREST_COLORS["success"]
     title_text = f"NDVI Comparison (Δ = {change:+.4f}, {change_pct:+.1f}%)"
 
     fig.update_layout(
@@ -235,51 +234,3 @@ def create_ndvi_comparison(period1_ndvi: float, period2_ndvi: float) -> go.Figur
     return fig
 
 
-def create_ml_prediction_chart(classes: Dict[str, Any]) -> go.Figure:
-    """
-    Create a horizontal bar chart of ML classification results.
-
-    Args:
-        classes: Dictionary of predicted classes with pixel counts.
-
-    Returns:
-        Plotly Figure.
-    """
-    sorted_classes = sorted(classes.items(), key=lambda x: x[1]["percentage"], reverse=True)
-    labels = [c[0] for c in sorted_classes]
-    values = [c[1]["percentage"] for c in sorted_classes]
-
-    # Color map for forest types
-    color_map = {
-        "Dense Forest": "#1b5e20",
-        "Sparse Forest": "#4caf50",
-        "Shrubland": "#8bc34a",
-        "Cropland": "#cddc39",
-        "Grassland": "#ffeb3b",
-        "Bare Soil": "#795548",
-        "Water": "#2196f3",
-        "Urban": "#9e9e9e",
-    }
-    colors = [color_map.get(l, "#666") for l in labels]
-
-    fig = go.Figure(go.Bar(
-        y=labels,
-        x=values,
-        orientation="h",
-        marker_color=colors,
-        text=[f"{v:.1f}%" for v in values],
-        textposition="outside",
-        textfont=dict(size=11),
-    ))
-
-    fig.update_layout(
-        **_base_layout("ML Forest Type Classification"),
-        height=380,
-        xaxis=dict(
-            title="Percentage (%)",
-            gridcolor="rgba(255,255,255,0.05)",
-        ),
-        yaxis=dict(autorange="reversed"),
-    )
-
-    return fig

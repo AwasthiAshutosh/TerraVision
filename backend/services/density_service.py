@@ -120,8 +120,8 @@ def classify_density(
             )
             .get("area")
         )
-        area_val = ee.Number(area).getInfo()
-        area_ha = round(area_val / 10000, 2) if area_val else 0
+        area_val = ee.Number(area).getInfo() if area is not None else None
+        area_ha = round((area_val or 0) / 10000, 2)
 
         categories[key] = {
             "label": thresh["label"],

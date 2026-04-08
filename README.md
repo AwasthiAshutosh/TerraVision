@@ -1,6 +1,6 @@
 # 🌳 Forest observation and analysis system
 
-A satellite-powered forest analysis platform that uses **Sentinel-2 imagery** and **Google Earth Engine** to compute vegetation indices, classify forest canopy density, detect temporal changes, and provide ML-based forest type predictions.
+A satellite-powered forest analysis platform that uses **Sentinel-2 imagery** and **Google Earth Engine** to compute vegetation indices, classify forest canopy density, and detect temporal changes.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
@@ -16,7 +16,7 @@ A satellite-powered forest analysis platform that uses **Sentinel-2 imagery** an
 - [Setup](#setup)
 - [Usage](#usage)
 - [API Reference](#api-reference)
-- [ML Model](#ml-model)
+
 - [Algorithmic Details](#algorithmic-details)
 - [Testing](#testing)
 - [Deployment](#deployment)
@@ -30,8 +30,7 @@ This system functions as a simplified version of **Global Forest Watch**, provid
 1. **NDVI Analysis** — Compute Normalized Difference Vegetation Index from Sentinel-2 imagery
 2. **Forest Density Classification** — Classify pixels into 5 canopy density categories
 3. **Change Detection** — Detect deforestation, degradation, and regrowth between time periods
-4. **ML Classification** — Random Forest-based forest type prediction
-5. **Interactive Dashboard** — Streamlit-based UI with interactive maps, charts, and downloads
+4. **Interactive Dashboard** — Streamlit-based UI with interactive maps, charts, and downloads
 
 ---
 
@@ -45,8 +44,7 @@ This system functions as a simplified version of **Global Forest Watch**, provid
 │                 │                   │                  │
 │  • Folium Maps  │                   │  • Routes        │
 │  • Plotly Charts│                   │  • Services      │
-│  • Controls     │                   │  • GEE Module    │
-│                 │                   │  • ML Service    │
+│                 │                   │                  │
 └─────────────────┘                   └────────┬─────────┘
                                                │
                                                │ Earth Engine API
@@ -118,14 +116,12 @@ python run.py --backend
 # Frontend only
 python run.py --frontend
 
-# Train ML model
-python run.py --train
 ```
 
 ### Using the Dashboard
 
 1. Open http://127.0.0.1:8501 in your browser
-2. Select an **Analysis Mode** from the sidebar (NDVI, Density, Change Detection, ML)
+2. Select an **Analysis Mode** from the sidebar (NDVI, Density, Change Detection)
 3. Choose an **Area of Interest** (preset or custom coordinates)
 4. Set the **date range** for analysis
 5. Adjust **resolution** as needed
@@ -163,7 +159,6 @@ Because GEE imposes strict computational limits (e.g., timeouts, payload constra
 | `/api/density/` | POST | Classify forest density |
 | `/api/density/thresholds` | GET | Get default thresholds |
 | `/api/change-detection/` | POST | Detect temporal changes |
-| `/api/ml-prediction/` | POST | ML forest classification |
 
 ### Example: NDVI Request
 
@@ -184,47 +179,6 @@ Visit http://127.0.0.1:8000/docs for the auto-generated Swagger UI.
 
 ---
 
-## 🤖 ML Model
-
-### Training
-
-```bash
-python run.py --train
-```
-
-This trains a **Random Forest classifier** on spectral features:
-
-| Feature | Description |
-|---------|-------------|
-| B2, B3, B4 | Visible bands (Blue, Green, Red) |
-| B8 | Near-Infrared |
-| B11, B12 | Short-Wave Infrared |
-| NDVI | Vegetation index |
-| EVI | Enhanced vegetation index |
-| SAVI | Soil-adjusted vegetation index |
-| NDWI | Water index |
-
-### Classes
-
-| ID | Class | Description |
-|----|-------|-------------|
-| 0 | Water | Rivers, lakes, reservoirs |
-| 1 | Urban | Built-up areas |
-| 2 | Bare Soil | Exposed earth |
-| 3 | Grassland | Grasses, meadows |
-| 4 | Cropland | Agricultural fields |
-| 5 | Shrubland | Low woody vegetation |
-| 6 | Sparse Forest | Open canopy forest |
-| 7 | Dense Forest | Closed canopy forest |
-
-### Evaluation Metrics
-
-- Accuracy, Precision, Recall, F1 Score
-- Intersection over Union (IoU) per class
-- Cohen's Kappa coefficient
-- 5-fold cross-validation
-
----
 
 ## 🧮 Algorithmic Details
 
@@ -320,11 +274,7 @@ forest-monitoring-system/
 │   ├── streamlit_app.py       # Streamlit dashboard
 │   ├── components/            # UI components
 │   └── utils/                 # API client, styling
-├── ml/
-│   ├── training/              # Model training scripts
-│   ├── evaluation/            # Metrics & evaluation
-│   ├── data/                  # Training data
-│   └── models/                # Saved models
+
 ├── tests/                     # Unit & integration tests
 ├── requirements.txt
 ├── run.py                     # Launcher script

@@ -34,14 +34,13 @@ def render_sidebar() -> Dict:
         st.markdown('<div class="sidebar-title">📊 Analysis Mode</div>', unsafe_allow_html=True)
         analysis_mode = st.selectbox(
             "Select Analysis",
-            options=["NDVI Analysis", "Forest Density", "Change Detection", "ML Prediction"],
+            options=["NDVI Analysis", "Forest Density", "Change Detection"],
             index=0,
             key="analysis_mode_select",
             help="""
 **NDVI Analysis**: Measures vegetation health using satellite imagery to identify lush or stressed forests.\n\n
 **Forest Density**: Classifies canopy cover into density categories (e.g., dense, moderate, sparse).\n\n
 **Change Detection**: Compares data between two time periods to identify areas of forest loss or gain.\n\n
-**ML Prediction**: Uses a Machine Learning model to segment and classify various land cover types.\n\n
             """
         )
 
@@ -180,8 +179,9 @@ def render_sidebar() -> Dict:
             st.session_state["active_mode"] = analysis_mode
             st.session_state["last_run_params"] = params_hashable
         else:
+            # Only reset if the analysis mode changed — not for resolution/threshold tweaks
             last_params = st.session_state.get("last_run_params")
-            if last_params and last_params != params_hashable:
+            if last_params and last_params.get("analysis_mode") != params_hashable["analysis_mode"]:
                 st.session_state["analysis_active"] = False
 
         run_analysis = run_clicked

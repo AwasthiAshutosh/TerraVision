@@ -66,19 +66,7 @@ class TestEndToEndPipeline:
         assert "forest_gain" in result["changes"]
         assert "net_change_hectares" in result
 
-    def test_full_ml_pipeline(self):
-        """Test ML prediction from request to response."""
-        from backend.services.ml_service import predict_forest_type
 
-        result = predict_forest_type(
-            bbox=[-60.0, -3.0, -59.0, -2.0],
-            start_date="2024-01-01",
-            end_date="2024-06-30",
-        )
-
-        assert "classes" in result
-        assert "confidence" in result
-        assert result["confidence"] > 0
 
     def test_export_utilities(self):
         """Test data export functions."""
@@ -91,5 +79,5 @@ class TestEndToEndPipeline:
         assert "0.72" in csv_output
 
         json_output = export_stats_json(stats)
-        assert "Forest Canopy" in json_output
+        assert "Forest observation and analysis system" in json_output
         assert "0.72" in json_output

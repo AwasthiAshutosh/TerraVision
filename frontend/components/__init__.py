@@ -14,13 +14,11 @@ from .charts import (
     create_density_bar,
     create_change_chart,
     create_ndvi_comparison,
-    create_ml_prediction_chart,
 )
 from .statistics import (
     render_ndvi_stats,
     render_density_stats,
     render_change_stats,
-    render_ml_stats,
 )
 
 __all__ = [
@@ -37,9 +35,7 @@ __all__ = [
     "create_density_bar",
     "create_change_chart",
     "create_ndvi_comparison",
-    "create_ml_prediction_chart",
     "render_ndvi_stats",
     "render_density_stats",
     "render_change_stats",
-    "render_ml_stats",
 ]

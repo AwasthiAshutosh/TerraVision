@@ -170,28 +170,3 @@ def render_change_stats(data: Dict[str, Any]) -> None:
         st.metric("ΔNDVI", f"{ndvi_change:+.4f}")
 
 
-def render_ml_stats(data: Dict[str, Any]) -> None:
-    """
-    Render ML prediction statistics.
-
-    Args:
-        data: ML prediction result from the API.
-    """
-    classes = data.get("classes", {})
-    confidence = data.get("confidence", 0)
-    model_type = data.get("model_type", "unknown")
-
-    # Model info
-    cols = st.columns(2)
-    with cols[0]:
-        st.metric("Model", model_type.replace("_", " ").title())
-    with cols[1]:
-        st.metric("Confidence", f"{confidence:.1%}")
-
-    # Class breakdown
-    st.markdown("#### Classification Results")
-    sorted_classes = sorted(classes.items(), key=lambda x: x[1]["percentage"], reverse=True)
-
-    for name, info in sorted_classes:
-        pct = info.get("percentage", 0)
-        st.progress(pct / 100, text=f"{name}: {pct:.1f}%")

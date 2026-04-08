@@ -132,9 +132,12 @@ def detect_changes(
         .get("area")
     )
 
-    loss_ha = round(ee.Number(loss_area).getInfo() / 10000, 2)
-    gain_ha = round(ee.Number(gain_area).getInfo() / 10000, 2)
-    stable_ha = round(ee.Number(stable_area).getInfo() / 10000, 2)
+    loss_val = ee.Number(loss_area).getInfo() if loss_area is not None else 0
+    gain_val = ee.Number(gain_area).getInfo() if gain_area is not None else 0
+    stable_val = ee.Number(stable_area).getInfo() if stable_area is not None else 0
+    loss_ha = round((loss_val or 0) / 10000, 2)
+    gain_ha = round((gain_val or 0) / 10000, 2)
+    stable_ha = round((stable_val or 0) / 10000, 2)
     total_ha = loss_ha + gain_ha + stable_ha
 
     # 8. NDVI statistics for each period

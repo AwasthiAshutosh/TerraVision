@@ -49,7 +49,6 @@ from frontend.utils.api_client import (
     get_ndvi,
     get_density,
     get_change_detection,
-    get_ml_prediction,
     check_backend_health,
 )
 from frontend.components.sidebar import render_sidebar
@@ -68,13 +67,11 @@ from frontend.components.charts import (
     create_density_bar,
     create_change_chart,
     create_ndvi_comparison,
-    create_ml_prediction_chart,
 )
 from frontend.components.statistics import (
     render_ndvi_stats,
     render_density_stats,
     render_change_stats,
-    render_ml_stats,
 )
 
 # ---------------------------------------------------------------------------
@@ -184,8 +181,7 @@ def _show_welcome(params: dict, demo_mode: bool):
             <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; line-height: 1.8;">
                 🌿 <strong>NDVI Analysis</strong> — Vegetation health index<br>
                 🌲 <strong>Forest Density</strong> — Canopy cover classification<br>
-                📈 <strong>Change Detection</strong> — Temporal forest changes<br>
-                🤖 <strong>ML Prediction</strong> — AI forest classification
+                📈 <strong>Change Detection</strong> — Temporal forest changes
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -212,8 +208,6 @@ def _run_analysis(params: dict, backend_ok: bool):
         _run_density(params, bbox, center, backend_ok)
     elif mode == "Change Detection":
         _run_change_detection(params, bbox, center, backend_ok)
-    elif mode == "ML Prediction":
-        _run_ml_prediction(params, bbox, center, backend_ok)
 
 
 def _run_ndvi(params, bbox, center, backend_ok):
@@ -414,63 +408,6 @@ def _run_change_detection(params, bbox, center, backend_ok):
         )
 
 
-def _run_ml_prediction(params, bbox, center, backend_ok):
-    """Run ML prediction and display results."""
-    cache_key = "cached_ml_result"
-    cached = st.session_state.get(cache_key)
-
-    if cached and not params.get("run_analysis"):
-        data = cached
-    else:
-        with st.spinner("🤖 Running ML classification model..."):
-            try:
-                if backend_ok:
-                    response = get_ml_prediction(
-                        bbox=bbox,
-                        start_date=params["start_date"],
-                        end_date=params["end_date"],
-                        scale=params["scale"],
-                    )
-                    data = response.get("data", {})
-                else:
-                    data = _get_demo_ml_data()
-            except Exception as e:
-                st.error(f"Prediction failed: {str(e)}")
-                data = _get_demo_ml_data()
-        st.session_state[cache_key] = data
-
-    st.markdown("## 🤖 ML Forest Classification")
-
-    # Statistics
-    render_ml_stats(data)
-
-    # Chart
-    st.markdown("### Classification Breakdown")
-    fig = create_ml_prediction_chart(data.get("classes", {}))
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Map
-    st.markdown("### 🗺️ Area of Interest")
-    m = create_base_map(center=center, zoom=11)
-    import folium
-    folium.Rectangle(
-        bounds=[[bbox[1], bbox[0]], [bbox[3], bbox[2]]],
-        color="#00e676",
-        weight=2,
-        fill=True,
-        fill_color="#00e676",
-        fill_opacity=0.1,
-    ).add_to(m)
-    m = finalize_map(m)
-    st_folium(m, width=None, height=400, key="ml_map")
-
-    import json
-    st.download_button(
-        label="📥 Download Results (JSON)",
-        data=json.dumps(data, indent=2, default=str),
-        file_name="ml_prediction.json",
-        mime="application/json",
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -536,24 +473,6 @@ def _get_demo_change_data():
     }
 
 
-def _get_demo_ml_data():
-    return {
-        "tile_url": None,
-        "demo_mode": True,
-        "classes": {
-            "Dense Forest": {"pixel_count": 2750, "percentage": 55.0},
-            "Sparse Forest": {"pixel_count": 600, "percentage": 12.0},
-            "Shrubland": {"pixel_count": 500, "percentage": 10.0},
-            "Cropland": {"pixel_count": 400, "percentage": 8.0},
-            "Grassland": {"pixel_count": 350, "percentage": 7.0},
-            "Bare Soil": {"pixel_count": 200, "percentage": 4.0},
-            "Water": {"pixel_count": 150, "percentage": 3.0},
-            "Urban": {"pixel_count": 50, "percentage": 1.0},
-        },
-        "confidence": 0.847,
-        "model_type": "random_forest",
-        "metadata": {"note": "Demo prediction - model not trained"},
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -572,5 +491,4 @@ st.markdown(f"""
 # ---------------------------------------------------------------------------
 # Entry Point
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    main()
+main()

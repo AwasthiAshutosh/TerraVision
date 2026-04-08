@@ -46,8 +46,6 @@ class TestHealthEndpoints:
         assert "ndvi" in data["endpoints"]
         assert "density" in data["endpoints"]
         assert "change_detection" in data["endpoints"]
-        assert "ml_prediction" in data["endpoints"]
-
 
 class TestNDVIEndpoint:
     """Test NDVI API endpoint."""
@@ -128,19 +126,4 @@ class TestChangeDetectionEndpoint:
         assert "changes" in data["data"]
 
 
-class TestMLPredictionEndpoint:
-    """Test ML prediction API endpoint."""
 
-    def test_ml_valid_request(self):
-        """Valid ML prediction request should return 200."""
-        response = client.post("/api/ml-prediction/", json={
-            "bbox": [-60.0, -3.0, -59.0, -2.0],
-            "start_date": "2024-01-01",
-            "end_date": "2024-06-30",
-            "model_type": "random_forest",
-            "scale": 100,
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert "classes" in data["data"]

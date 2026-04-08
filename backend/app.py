@@ -16,7 +16,6 @@ from backend.routes import (
     ndvi_router,
     density_router,
     change_detection_router,
-    ml_prediction_router,
 )
 from backend.utils.logger import get_logger
 
@@ -87,7 +86,6 @@ app.add_middleware(
 app.include_router(ndvi_router)
 app.include_router(density_router)
 app.include_router(change_detection_router)
-app.include_router(ml_prediction_router)
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +125,6 @@ async def api_status():
             "ndvi": "/api/ndvi",
             "density": "/api/density",
             "change_detection": "/api/change-detection",
-            "ml_prediction": "/api/ml-prediction",
         },
         "default_aoi": {
             "name": "Amazon Rainforest",

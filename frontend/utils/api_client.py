@@ -94,15 +94,7 @@ def get_change_detection(bbox, p1_start, p1_end, p2_start, p2_end, scale=100, th
     })
 
 
-def get_ml_prediction(bbox, start_date, end_date, model_type="random_forest", scale=100):
-    """Fetch ML prediction results from the backend."""
-    return call_api("/api/ml-prediction/", data={
-        "bbox": bbox,
-        "start_date": start_date,
-        "end_date": end_date,
-        "model_type": model_type,
-        "scale": scale,
-    })
+
 
 
 def check_backend_health():

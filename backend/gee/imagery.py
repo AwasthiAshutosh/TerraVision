@@ -60,10 +60,9 @@ def get_sentinel2_collection(
         .map(mask_sentinel2_clouds)
     )
 
-    count = collection.size().getInfo()
     logger.info(
-        "Sentinel-2 collection: %d images found (%s to %s)",
-        count, start_date, end_date,
+        "Sentinel-2 collection filtered (%s to %s)",
+        start_date, end_date,
     )
 
     return collection

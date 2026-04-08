@@ -9,7 +9,7 @@ import json
 import csv
 import io
 from typing import Any, Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from backend.utils.logger import get_logger
 
@@ -46,7 +46,7 @@ def export_stats_json(stats: Dict[str, Any], indent: int = 2) -> str:
         JSON-formatted string.
     """
     export_data = {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "system": "Forest observation and analysis system",
         "data": stats,
     }
@@ -71,7 +71,7 @@ def create_report_summary(
     """
     report = {
         "report_title": "Forest Canopy Density Analysis Report",
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "ndvi_analysis": ndvi_stats,
     }
 

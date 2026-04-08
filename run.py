@@ -8,7 +8,6 @@ Usage:
     python run.py              # Start both backend and frontend
     python run.py --backend    # Start only the backend
     python run.py --frontend   # Start only the frontend
-    python run.py --train      # Train the ML model
 """
 
 import argparse
@@ -101,8 +100,19 @@ def start_both():
     print()
 
     try:
-        backend_proc.wait()
-        frontend_proc.wait()
+        # Poll both processes — if either exits, shut down the other
+        while True:
+            if backend_proc.poll() is not None:
+                print("\n⚠ Backend process exited (code: %d)" % backend_proc.returncode)
+                frontend_proc.terminate()
+                frontend_proc.wait()
+                break
+            if frontend_proc.poll() is not None:
+                print("\n⚠ Frontend process exited (code: %d)" % frontend_proc.returncode)
+                backend_proc.terminate()
+                backend_proc.wait()
+                break
+            time.sleep(0.5)
     except KeyboardInterrupt:
         print("\n🛑 Shutting down...")
         backend_proc.terminate()
@@ -112,33 +122,12 @@ def start_both():
         print("✓ Servers stopped.")
 
 
-def train_model():
-    """Train the ML classification model."""
-    print("🤖 Training Random Forest classifier...")
-    print()
-
-    # Add project root to path
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-    from ml.training.train_rf import train_random_forest
-    report = train_random_forest()
-
-    print()
-    print("=" * 50)
-    print(f"✅ Training complete!")
-    print(f"   Accuracy: {report['performance']['test_accuracy']:.4f}")
-    print(f"   CV Score: {report['performance']['cv_accuracy_mean']:.4f} ± {report['performance']['cv_accuracy_std']:.4f}")
-    print(f"   Model saved to: ml/models/random_forest_model.joblib")
-    print("=" * 50)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Forest observation and analysis system Launcher",
     )
     parser.add_argument("--backend", action="store_true", help="Start only the backend")
     parser.add_argument("--frontend", action="store_true", help="Start only the frontend")
-    parser.add_argument("--train", action="store_true", help="Train ML model")
 
     args = parser.parse_args()
 
@@ -146,7 +135,5 @@ if __name__ == "__main__":
         start_backend()
     elif args.frontend:
         start_frontend()
-    elif args.train:
-        train_model()
     else:
         start_both()
