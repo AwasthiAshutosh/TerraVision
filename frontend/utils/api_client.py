@@ -8,7 +8,7 @@ the Streamlit frontend. Uses httpx for async support.
 import requests
 from typing import Any, Dict, Optional
 
-API_BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "https://terravision-cyyu.onrender.com"
 
 
 def call_api(
@@ -33,7 +33,7 @@ def call_api(
         ConnectionError: If the backend is not reachable.
         Exception: For other API errors.
     """
-    url = f"{API_BASE_URL}{endpoint}"
+    url = f"{BASE_URL}{endpoint}"
 
     try:
         if method.upper() == "GET":
@@ -46,7 +46,7 @@ def call_api(
 
     except requests.ConnectionError:
         raise ConnectionError(
-            f"Cannot connect to backend at {API_BASE_URL}. "
+            f"Cannot connect to backend at {BASE_URL}. "
             "Make sure the FastAPI server is running."
         )
     except requests.HTTPError as exc:
@@ -100,7 +100,7 @@ def get_change_detection(bbox, p1_start, p1_end, p2_start, p2_end, scale=100, th
 def check_backend_health():
     """Check if the backend is running and healthy."""
     try:
-        result = call_api("/health", method="GET", timeout=5)
+        result = call_api("/", method="GET", timeout=5)
         return True, result
     except Exception as exc:
         return False, str(exc)
