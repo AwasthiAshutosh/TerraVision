@@ -15,7 +15,7 @@ def call_api(
     endpoint: str,
     method: str = "POST",
     data: Optional[Dict] = None,
-    timeout: int = 300,
+    timeout: int = 30,
 ) -> Dict[str, Any]:
     """
     Call the FastAPI backend.
@@ -42,7 +42,10 @@ def call_api(
             response = requests.post(url, json=data, timeout=timeout)
 
         response.raise_for_status()
-        return response.json()
+        try:
+            return response.json()
+        except Exception:
+            return {"error": "Invalid JSON response from backend"}
 
     except requests.ConnectionError:
         raise ConnectionError(

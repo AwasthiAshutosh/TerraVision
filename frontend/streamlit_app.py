@@ -84,9 +84,12 @@ st.markdown(get_custom_css(), unsafe_allow_html=True)
 # Check backend health
 # ---------------------------------------------------------------------------
 def check_backend():
-    """Check if the backend API is running."""
-    healthy, info = check_backend_health()
-    return healthy, info
+    """Safe backend check (prevents Streamlit crash)."""
+    try:
+        healthy, info = check_backend_health()
+        return healthy, info
+    except Exception:
+        return False, {}
 
 
 # ---------------------------------------------------------------------------
