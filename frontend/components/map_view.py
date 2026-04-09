@@ -202,9 +202,7 @@ def finalize_map(m: folium.Map) -> folium.Map:
     return m
 
 
-# ---------------------------------------------------------------------------
 # Helper Functions
-# ---------------------------------------------------------------------------
 def _add_aoi_rectangle(m: folium.Map, bbox: List[float]) -> None:
     """Draw the AOI bounding box on the map."""
     west, south, east, north = bbox

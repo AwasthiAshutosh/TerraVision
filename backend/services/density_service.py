@@ -31,9 +31,7 @@ from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ---------------------------------------------------------------------------
 # Default density thresholds
-# ---------------------------------------------------------------------------
 DEFAULT_THRESHOLDS = {
     "dense_forest": {"min": 0.7, "max": 1.0, "label": "Dense Forest", "color": "#0a5e1a"},
     "moderate_forest": {"min": 0.5, "max": 0.7, "label": "Moderate Forest", "color": "#4caf50"},

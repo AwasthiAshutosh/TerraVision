@@ -17,9 +17,7 @@ from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ---------------------------------------------------------------------------
 # Sentinel-2 Collection ID (Level-2A = Surface Reflectance)
-# ---------------------------------------------------------------------------
 SENTINEL2_COLLECTION = "COPERNICUS/S2_SR_HARMONIZED"
 LANDSAT8_COLLECTION = "LANDSAT/LC08/C02/T1_L2"
 

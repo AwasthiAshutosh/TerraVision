@@ -10,9 +10,7 @@ import plotly.express as px
 from typing import Any, Dict, List, Optional
 
 
-# ---------------------------------------------------------------------------
 # Color Palette
-# ---------------------------------------------------------------------------
 FOREST_COLORS = {
     "primary": "#4caf50",
     "secondary": "#81c784",

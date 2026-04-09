@@ -22,9 +22,7 @@ from backend.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Application Lifespan (startup / shutdown)
-# ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -50,9 +48,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 
-# ---------------------------------------------------------------------------
 # FastAPI Application
-# ---------------------------------------------------------------------------
 app = FastAPI(
     title="Forest observation and analysis system",
     description=(
@@ -68,9 +64,7 @@ app = FastAPI(
 )
 
 
-# ---------------------------------------------------------------------------
 # CORS Middleware (allow Streamlit frontend to call the API)
-# ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, restrict to specific origins
@@ -80,17 +74,13 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------------
 # Register Routers
-# ---------------------------------------------------------------------------
 app.include_router(ndvi_router)
 app.include_router(density_router)
 app.include_router(change_detection_router)
 
 
-# ---------------------------------------------------------------------------
 # Health Check and Status Endpoints
-# ---------------------------------------------------------------------------
 @app.get("/", tags=["Health"])
 async def root():
     """API root — health check endpoint."""

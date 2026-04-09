@@ -12,9 +12,7 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
-# ---------------------------------------------------------------------------
 # Load .env from project root
-# ---------------------------------------------------------------------------
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _ENV_PATH = _PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=_ENV_PATH)
@@ -84,7 +82,5 @@ class AppSettings(BaseModel):
     )
 
 
-# ---------------------------------------------------------------------------
 # Singleton settings instance
-# ---------------------------------------------------------------------------
 settings = AppSettings()

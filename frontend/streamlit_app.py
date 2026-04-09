@@ -14,15 +14,11 @@ from pathlib import Path
 import streamlit as st
 from streamlit_folium import st_folium
 
-# ---------------------------------------------------------------------------
 # Add project root to path for imports
-# ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# ---------------------------------------------------------------------------
 # Streamlit Page Configuration (must be first st command)
-# ---------------------------------------------------------------------------
 from frontend.utils.styles import get_page_icon, get_logo_html
 
 st.set_page_config(
@@ -40,9 +36,7 @@ st.set_page_config(
     },
 )
 
-# ---------------------------------------------------------------------------
 # Imports (after sys.path fix)
-# ---------------------------------------------------------------------------
 from frontend.utils.styles import get_custom_css, render_header
 from frontend.utils.api_client import (
     get_ndvi,
@@ -74,15 +68,11 @@ from frontend.components.statistics import (
     render_change_stats,
 )
 
-# ---------------------------------------------------------------------------
 # Apply custom CSS
-# ---------------------------------------------------------------------------
 st.markdown(get_custom_css(), unsafe_allow_html=True)
 
 
-# ---------------------------------------------------------------------------
 # Helpers for input-responsive demo data
-# ---------------------------------------------------------------------------
 def _bbox_seed(bbox, extra=""):
     """Derive a deterministic seed from bbox + optional extra string."""
     import hashlib
@@ -100,9 +90,7 @@ def _estimate_area_hectares(bbox):
     return round(width_km * height_km * 100, 2)
 
 
-# ---------------------------------------------------------------------------
 # Check backend health
-# ---------------------------------------------------------------------------
 def check_backend():
     """Safe backend check (prevents Streamlit crash)."""
     try:
@@ -112,9 +100,7 @@ def check_backend():
         return False, {}
 
 
-# ---------------------------------------------------------------------------
 # Main Application
-# ---------------------------------------------------------------------------
 def main():
     """Main application entry point."""
 
@@ -448,10 +434,8 @@ def _run_change_detection(params, bbox, center, backend_ok):
 
 
 
-# ---------------------------------------------------------------------------
 # Demo Data Fallbacks (when backend is offline)
 # These are input-responsive: different bbox/dates → different results
-# ---------------------------------------------------------------------------
 def _get_demo_ndvi_data(params):
     """Generate input-responsive demo NDVI data."""
     import numpy as np
@@ -616,14 +600,10 @@ def _get_demo_change_data(params):
 
 
 
-# ---------------------------------------------------------------------------
 # Entry Point
-# ---------------------------------------------------------------------------
 main()
 
-# ---------------------------------------------------------------------------
 # Footer (rendered after main content)
-# ---------------------------------------------------------------------------
 logo_footer = get_logo_html(width="1rem", vertical_align="middle", margin_right="4px")
 st.markdown(f"""
 <div class="footer">

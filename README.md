@@ -2,6 +2,8 @@
 
 A satellite-powered forest analysis platform that uses **Sentinel-2 imagery** and **Google Earth Engine** to compute vegetation indices, classify forest canopy density, and detect temporal changes.
 
+**🚀 Live Demo:** [https://terravision-v1.streamlit.app/](https://terravision-v1.streamlit.app/)
+
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.41-red.svg)
@@ -16,7 +18,6 @@ A satellite-powered forest analysis platform that uses **Sentinel-2 imagery** an
 - [Setup](#setup)
 - [Usage](#usage)
 - [API Reference](#api-reference)
-
 - [Algorithmic Details](#algorithmic-details)
 - [Testing](#testing)
 - [Deployment](#deployment)
@@ -260,6 +261,10 @@ uvicorn backend.app:app --host 0.0.0.0 --port 8000
 | `DEMO_MODE` | Use synthetic data | false |
 | `LOG_LEVEL` | Logging level | INFO |
 
+### 🔒 Security Notes
+
+**Securing GEE Credentials:** When deploying to production environments, never hardcode your Google Earth Engine API credentials or push your `.env` file to version control. Always securely inject secrets utilizing the environment variable management tools provided by your hosting platform (e.g., Streamlit Secrets, Platform Environment Variables, or GCP Secret Manager).
+
 ---
 
 ## 📁 Project Structure
@@ -283,6 +288,11 @@ forest-monitoring-system/
 ├── run.py                     # Launcher script
 └── README.md
 ```
+
+
+## 📬 Contact
+
+For support, issues, or professional queries, please **open an issue** directly on the GitHub repository or reach out to the project maintainers.
 
 ---
 

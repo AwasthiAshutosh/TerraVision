@@ -18,7 +18,7 @@ def render_sidebar() -> Dict:
         Dictionary with all sidebar parameter values.
     """
     with st.sidebar:
-        # --- App Logo & Title ---
+        # App Logo & Title
         from frontend.utils.styles import get_logo_html
         logo_html = get_logo_html(width="7rem", container_style="display: inline-block; margin-bottom: 8px;")
 
@@ -30,7 +30,7 @@ def render_sidebar() -> Dict:
         </div>
         """, unsafe_allow_html=True)
 
-        # --- Analysis Mode ---
+        # Analysis Mode
         st.markdown('<div class="sidebar-title">📊 Analysis Mode</div>', unsafe_allow_html=True)
         analysis_mode = st.selectbox(
             "Select Analysis",
@@ -46,7 +46,7 @@ def render_sidebar() -> Dict:
 
         st.divider()
 
-        # --- Area of Interest ---
+        # Area of Interest
         st.markdown('<div class="sidebar-title">📍 Area of Interest</div>', unsafe_allow_html=True)
 
         aoi_preset = st.selectbox(
@@ -84,7 +84,7 @@ def render_sidebar() -> Dict:
 
         st.divider()
 
-        # --- Date Selection ---
+        # Date Selection
         st.markdown('<div class="sidebar-title">📅 Date Range</div>', unsafe_allow_html=True)
 
         if analysis_mode == "Change Detection":
@@ -129,7 +129,7 @@ def render_sidebar() -> Dict:
 
         st.divider()
 
-        # --- Processing Options ---
+        # Processing Options
         st.markdown('<div class="sidebar-title">⚙️ Processing Options</div>', unsafe_allow_html=True)
 
         scale = st.slider(
@@ -155,7 +155,7 @@ def render_sidebar() -> Dict:
 
         st.divider()
 
-        # --- Run Button ---
+        # Run Button
         run_clicked = st.button(
             "🚀 Run Analysis",
             type="primary",
@@ -186,7 +186,7 @@ def render_sidebar() -> Dict:
 
         run_analysis = run_clicked
 
-        # --- Footer ---
+        # Footer
         st.markdown("""
         <div style="text-align: center; padding: 1rem 0; margin-top: 1rem; color: rgba(255,255,255,0.25); font-size: 0.65rem;">
             Forest observation and analysis system v1.0<br>

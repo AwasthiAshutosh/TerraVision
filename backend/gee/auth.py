@@ -12,9 +12,7 @@ from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ---------------------------------------------------------------------------
 # Module-level state
-# ---------------------------------------------------------------------------
 _initialized = False
 _demo_mode = settings.demo_mode
 
