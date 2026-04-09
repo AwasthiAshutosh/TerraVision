@@ -8,7 +8,24 @@ the Streamlit frontend. Uses requests for synchronous API calls.
 import requests
 from typing import Any, Dict, Optional
 
-BASE_URL = "https://terravision-cyyu.onrender.com"
+import os
+from dotenv import load_dotenv
+
+# Load local environment variables if available
+load_dotenv()
+
+# Use local backend by default, matching .env config
+BACKEND_HOST = os.getenv("BACKEND_HOST", "127.0.0.1")
+BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
+BASE_URL = os.getenv("API_BASE_URL", f"http://{BACKEND_HOST}:{BACKEND_PORT}")
+
+
+class NoDataAvailableError(Exception):
+    """Raised when the backend reports no satellite data is available."""
+
+    def __init__(self, message: str, details: dict = None):
+        super().__init__(message)
+        self.details = details or {}
 
 
 def call_api(
@@ -43,11 +60,26 @@ def call_api(
             )
 
         except requests.HTTPError as exc:
+            # Parse the error response to distinguish data unavailability
             try:
-                error_detail = exc.response.json().get("detail", str(exc))
+                error_body = exc.response.json()
+                detail = error_body.get("detail", str(exc))
             except Exception:
-                error_detail = str(exc)
-            raise Exception(f"🚨 API Error: {error_detail}")
+                detail = str(exc)
+                raise Exception(f"🚨 API Error: {detail}")
+
+            # Check if this is a "no data available" error (HTTP 404 with specific type)
+            if exc.response.status_code == 404 and isinstance(detail, dict):
+                error_type = detail.get("error_type", "")
+                if error_type == "no_data_available":
+                    raise NoDataAvailableError(
+                        message=detail.get("message", "No satellite data available for this request."),
+                        details=detail.get("details", {}),
+                    )
+
+            # All other HTTP errors are system/validation errors
+            error_msg = detail if isinstance(detail, str) else detail.get("message", str(detail))
+            raise Exception(f"🚨 API Error: {error_msg}")
 
         except ValueError:
             # JSON decode error
@@ -89,9 +121,6 @@ def get_change_detection(bbox, p1_start, p1_end, p2_start, p2_end, scale=100, th
         "scale": scale,
         "change_threshold": threshold,
     })
-
-
-
 
 
 def check_backend_health():

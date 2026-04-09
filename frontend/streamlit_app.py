@@ -49,6 +49,7 @@ from frontend.utils.api_client import (
     get_density,
     get_change_detection,
     check_backend_health,
+    NoDataAvailableError,
 )
 from frontend.components.sidebar import render_sidebar
 from frontend.components.map_view import (
@@ -77,6 +78,26 @@ from frontend.components.statistics import (
 # Apply custom CSS
 # ---------------------------------------------------------------------------
 st.markdown(get_custom_css(), unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Helpers for input-responsive demo data
+# ---------------------------------------------------------------------------
+def _bbox_seed(bbox, extra=""):
+    """Derive a deterministic seed from bbox + optional extra string."""
+    import hashlib
+    raw = f"{bbox}{extra}"
+    return int(hashlib.md5(raw.encode()).hexdigest()[:8], 16)
+
+
+def _estimate_area_hectares(bbox):
+    """Approximate area of a bbox in hectares."""
+    import math
+    west, south, east, north = bbox
+    mid_lat = math.radians((south + north) / 2)
+    width_km = abs(east - west) * 111.32 * math.cos(mid_lat)
+    height_km = abs(north - south) * 110.574
+    return round(width_km * height_km * 100, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -226,10 +247,17 @@ def _run_ndvi(params, bbox, center, backend_ok):
                     )
                     data = response.get("data") or response
                 else:
-                    data = _get_demo_ndvi_data()
+                    data = _get_demo_ndvi_data(params)
+            except NoDataAvailableError as e:
+                st.warning(
+                    f"📡 **No Satellite Data Available**\n\n{str(e)}\n\n"
+                    "Try adjusting the date range or selecting a different region.",
+                    icon="🛰️",
+                )
+                return
             except Exception as e:
                 st.error(f"Analysis failed: {str(e)}")
-                data = _get_demo_ndvi_data()
+                data = _get_demo_ndvi_data(params)
         st.session_state[cache_key] = data
 
     # Display results
@@ -288,10 +316,17 @@ def _run_density(params, bbox, center, backend_ok):
                     )
                     data = response.get("data") or response
                 else:
-                    data = _get_demo_density_data()
+                    data = _get_demo_density_data(params)
+            except NoDataAvailableError as e:
+                st.warning(
+                    f"📡 **No Satellite Data Available**\n\n{str(e)}\n\n"
+                    "Try adjusting the date range or selecting a different region.",
+                    icon="🛰️",
+                )
+                return
             except Exception as e:
                 st.error(f"Analysis failed: {str(e)}")
-                data = _get_demo_density_data()
+                data = _get_demo_density_data(params)
         st.session_state[cache_key] = data
 
     st.markdown("## 🌲 Forest Density Classification")
@@ -356,10 +391,17 @@ def _run_change_detection(params, bbox, center, backend_ok):
                     )
                     data = response.get("data") or response
                 else:
-                    data = _get_demo_change_data()
+                    data = _get_demo_change_data(params)
+            except NoDataAvailableError as e:
+                st.warning(
+                    f"📡 **No Satellite Data Available**\n\n{str(e)}\n\n"
+                    "Try adjusting the date ranges or selecting a different region.",
+                    icon="🛰️",
+                )
+                return
             except Exception as e:
                 st.error(f"Analysis failed: {str(e)}")
-                data = _get_demo_change_data()
+                data = _get_demo_change_data(params)
         st.session_state[cache_key] = data
 
     st.markdown("## 📈 Change Detection Results")
@@ -408,66 +450,169 @@ def _run_change_detection(params, bbox, center, backend_ok):
 
 # ---------------------------------------------------------------------------
 # Demo Data Fallbacks (when backend is offline)
+# These are input-responsive: different bbox/dates → different results
 # ---------------------------------------------------------------------------
-def _get_demo_ndvi_data():
+def _get_demo_ndvi_data(params):
+    """Generate input-responsive demo NDVI data."""
     import numpy as np
-    np.random.seed(42)
+
+    bbox = params["bbox"]
+    seed = _bbox_seed(bbox, f"{params.get('start_date','')}{params.get('end_date','')}")
+    rng = np.random.RandomState(seed)
+
+    # Derive NDVI from latitude (tropical → higher)
+    mid_lat = abs((bbox[1] + bbox[3]) / 2)
+    base_ndvi = max(0.2, min(0.85, 0.80 - mid_lat * 0.008))
+    mean_ndvi = base_ndvi + rng.uniform(-0.08, 0.08)
+
+    # Generate spatially-varied grid
+    grid_size = 30
+    freq_x = 0.3 + rng.uniform(0, 0.5)
+    freq_y = 0.2 + rng.uniform(0, 0.4)
+    x = np.linspace(0, 4 * np.pi, grid_size)
+    y = np.linspace(0, 4 * np.pi, grid_size)
+    xx, yy = np.meshgrid(x, y)
+    base = base_ndvi + 0.15 * np.sin(xx * freq_x) * np.cos(yy * freq_y)
+    noise = rng.normal(0, 0.05, (grid_size, grid_size))
+    cx1, cy1 = rng.uniform(2, 10), rng.uniform(2, 10)
+    clearing = np.exp(-((xx - cx1) ** 2 + (yy - cy1) ** 2) / rng.uniform(2, 6)) * rng.uniform(0.2, 0.5)
+    demo_grid = np.clip(base + noise - clearing, -0.2, 0.95)
+
     return {
         "tile_url": None,
         "demo_mode": True,
-        "stats": {"mean": 0.7234, "min": 0.2734, "max": 0.9134, "std_dev": 0.1456},
+        "stats": {
+            "mean": round(mean_ndvi, 4),
+            "min": round(mean_ndvi - rng.uniform(0.30, 0.50), 4),
+            "max": round(min(mean_ndvi + rng.uniform(0.10, 0.22), 0.95), 4),
+            "std_dev": round(rng.uniform(0.10, 0.20), 4),
+        },
         "interpretation": {
-            "category": "Dense Healthy Vegetation",
-            "description": "High vegetation density indicative of healthy tropical forest.",
-            "health": "excellent",
+            "category": (
+                "Dense Healthy Vegetation" if mean_ndvi > 0.7 else
+                "Moderate Vegetation" if mean_ndvi > 0.5 else
+                "Sparse Vegetation" if mean_ndvi > 0.3 else
+                "Minimal Vegetation"
+            ),
+            "description": (
+                "High vegetation density indicative of healthy forest."
+                if mean_ndvi > 0.7 else
+                "Moderate vegetation cover with mixed land use."
+                if mean_ndvi > 0.5 else
+                "Sparse vegetation cover, possible degradation."
+                if mean_ndvi > 0.3 else
+                "Low vegetation signal, bare or cleared land."
+            ),
+            "health": (
+                "excellent" if mean_ndvi > 0.7 else
+                "good" if mean_ndvi > 0.5 else
+                "moderate" if mean_ndvi > 0.3 else
+                "poor"
+            ),
         },
         "metadata": {
             "satellite": "Sentinel-2 L2A (DEMO)",
-            "date_range": "Demo data",
+            "date_range": f"{params.get('start_date', 'N/A')} to {params.get('end_date', 'N/A')}",
             "images_used": 0,
-            "scale_meters": 100,
+            "scale_meters": params.get("scale", 100),
         },
-        "demo_grid": np.clip(
-            0.7 + 0.15 * np.sin(np.linspace(0, 4*np.pi, 30).reshape(-1,1))
-            * np.cos(np.linspace(0, 4*np.pi, 30).reshape(1,-1))
-            + np.random.normal(0, 0.05, (30, 30)),
-            -0.2, 0.95
-        ).tolist(),
+        "demo_grid": demo_grid.tolist(),
     }
 
 
-def _get_demo_density_data():
+def _get_demo_density_data(params):
+    """Generate input-responsive demo density data."""
+    import numpy as np
+
+    bbox = params["bbox"]
+    seed = _bbox_seed(bbox, f"{params.get('start_date','')}{params.get('end_date','')}")
+    rng = np.random.RandomState(seed)
+
+    total_ha = _estimate_area_hectares(bbox)
+    if total_ha < 100:
+        total_ha = 11000.0
+
+    # Vary distribution by latitude
+    mid_lat = abs((bbox[1] + bbox[3]) / 2)
+    dense_pct = max(10, min(65, 60 - mid_lat * 0.6 + rng.uniform(-5, 5)))
+    moderate_pct = max(8, min(30, 22 + rng.uniform(-5, 5)))
+    sparse_pct = max(5, min(20, 10 + mid_lat * 0.15 + rng.uniform(-3, 3)))
+    grassland_pct = max(2, min(15, 5 + mid_lat * 0.1 + rng.uniform(-2, 2)))
+    non_veg_pct = max(1, 100 - dense_pct - moderate_pct - sparse_pct - grassland_pct)
+
+    pcts = [dense_pct, moderate_pct, sparse_pct, grassland_pct, non_veg_pct]
+    pct_sum = sum(pcts)
+    pcts = [round(p / pct_sum * 100, 1) for p in pcts]
+
+    cat_defs = [
+        ("dense_forest", "Dense Forest", "#0a5e1a", "0.7 – 1.0"),
+        ("moderate_forest", "Moderate Forest", "#4caf50", "0.5 – 0.7"),
+        ("sparse_vegetation", "Sparse Vegetation", "#cddc39", "0.3 – 0.5"),
+        ("grassland_crops", "Grassland/Crops", "#ffeb3b", "0.1 – 0.3"),
+        ("non_vegetation", "Non-Vegetation", "#d32f2f", "-1.0 – 0.1"),
+    ]
+
+    categories = {}
+    for (key, label, color, ndvi_range), pct in zip(cat_defs, pcts):
+        categories[key] = {
+            "label": label,
+            "area_hectares": round(total_ha * pct / 100, 2),
+            "color": color,
+            "ndvi_range": ndvi_range,
+            "percentage": pct,
+        }
+
     return {
         "tile_url": None,
         "demo_mode": True,
-        "total_area_hectares": 11000,
-        "categories": {
-            "dense_forest": {"label": "Dense Forest", "area_hectares": 6050, "color": "#0a5e1a", "ndvi_range": "0.7 – 1.0", "percentage": 55.0},
-            "moderate_forest": {"label": "Moderate Forest", "area_hectares": 2420, "color": "#4caf50", "ndvi_range": "0.5 – 0.7", "percentage": 22.0},
-            "sparse_vegetation": {"label": "Sparse Vegetation", "area_hectares": 1320, "color": "#cddc39", "ndvi_range": "0.3 – 0.5", "percentage": 12.0},
-            "grassland_crops": {"label": "Grassland/Crops", "area_hectares": 770, "color": "#ffeb3b", "ndvi_range": "0.1 – 0.3", "percentage": 7.0},
-            "non_vegetation": {"label": "Non-Vegetation", "area_hectares": 440, "color": "#d32f2f", "ndvi_range": "-1.0 – 0.1", "percentage": 4.0},
-        },
+        "total_area_hectares": round(total_ha, 2),
+        "categories": categories,
     }
 
 
-def _get_demo_change_data():
+def _get_demo_change_data(params):
+    """Generate input-responsive demo change detection data."""
+    import numpy as np
+
+    bbox = params["bbox"]
+    seed = _bbox_seed(bbox, f"{params.get('period1_start','')}{params.get('period2_end','')}")
+    rng = np.random.RandomState(seed)
+
+    total_ha = _estimate_area_hectares(bbox)
+    if total_ha < 100:
+        total_ha = 11000.0
+
+    threshold = params.get("change_threshold", 0.2)
+    mid_lat = abs((bbox[1] + bbox[3]) / 2)
+    mid_lon = abs((bbox[0] + bbox[2]) / 2)
+
+    loss_pct = max(1, min(25, 8 + mid_lat * 0.12 + mid_lon * 0.02 - threshold * 15 + rng.uniform(-4, 4)))
+    gain_pct = max(0.5, min(15, 3 + mid_lon * 0.01 + rng.uniform(-1.5, 2.5)))
+    stable_pct = round(100 - loss_pct - gain_pct, 1)
+
+    loss_ha = round(total_ha * loss_pct / 100, 2)
+    gain_ha = round(total_ha * gain_pct / 100, 2)
+    stable_ha = round(total_ha * stable_pct / 100, 2)
+
+    base_ndvi = max(0.3, min(0.85, 0.80 - mid_lat * 0.008))
+    p1_ndvi = round(base_ndvi + rng.uniform(-0.03, 0.03), 4)
+    p2_ndvi = round(p1_ndvi + (gain_ha - loss_ha) / total_ha, 4)
+
     return {
         "change_tile_url": None,
         "diff_tile_url": None,
         "demo_mode": True,
         "changes": {
-            "forest_loss": {"area_hectares": 880, "percentage": 8.0, "color": "#e53935", "label": "Forest Loss"},
-            "stable": {"area_hectares": 9790, "percentage": 89.0, "color": "#fdd835", "label": "Stable"},
-            "forest_gain": {"area_hectares": 330, "percentage": 3.0, "color": "#43a047", "label": "Forest Gain"},
+            "forest_loss": {"area_hectares": loss_ha, "percentage": round(loss_pct, 1), "color": "#e53935", "label": "Forest Loss"},
+            "stable": {"area_hectares": stable_ha, "percentage": round(stable_pct, 1), "color": "#fdd835", "label": "Stable"},
+            "forest_gain": {"area_hectares": gain_ha, "percentage": round(gain_pct, 1), "color": "#43a047", "label": "Forest Gain"},
         },
-        "total_area_hectares": 11000,
-        "net_change_hectares": -550,
-        "period1_mean_ndvi": 0.74,
-        "period2_mean_ndvi": 0.69,
+        "total_area_hectares": round(total_ha, 2),
+        "net_change_hectares": round(gain_ha - loss_ha, 2),
+        "period1_mean_ndvi": p1_ndvi,
+        "period2_mean_ndvi": p2_ndvi,
         "metadata": {"satellite": "Sentinel-2 L2A (DEMO)"},
     }
-
 
 
 

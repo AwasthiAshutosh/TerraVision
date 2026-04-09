@@ -6,6 +6,7 @@ Endpoints for temporal forest change analysis.
 
 from fastapi import APIRouter, HTTPException
 from backend.utils.validators import ChangeDetectionRequest
+from backend.utils.exceptions import NoDataAvailableError
 from backend.services.change_service import detect_changes
 from backend.utils.logger import get_logger
 
@@ -41,6 +42,16 @@ def get_change_detection(request: ChangeDetectionRequest):
         )
         return {"status": "success", "data": result}
 
+    except NoDataAvailableError as exc:
+        logger.warning("No data available for change detection: %s", exc)
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error_type": "no_data_available",
+                "message": str(exc),
+                "details": exc.details,
+            },
+        )
     except ValueError as exc:
         logger.error("Validation error in change detection: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc))

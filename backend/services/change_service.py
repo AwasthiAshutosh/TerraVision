@@ -21,7 +21,11 @@ from typing import Any, Dict, List
 import ee
 
 from backend.gee.auth import initialize_gee, is_demo_mode
-from backend.gee.imagery import get_sentinel2_collection, create_composite, compute_ndvi
+from backend.gee.imagery import (
+    get_sentinel2_collection, create_composite, compute_ndvi,
+    _bbox_seed, _estimate_area_hectares,
+)
+from backend.utils.exceptions import NoDataAvailableError
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -53,6 +57,9 @@ def detect_changes(
 
     Returns:
         Dictionary with change map tile URL, statistics, and metadata.
+
+    Raises:
+        NoDataAvailableError: If no satellite images are available for either period.
     """
     initialize_gee()
 
@@ -70,12 +77,27 @@ def detect_changes(
     aoi = ee.Geometry.Rectangle(bbox)
 
     # 1. Compute NDVI for Period 1 (baseline)
-    collection1 = get_sentinel2_collection(bbox, period1_start, period1_end)
+    # Raises NoDataAvailableError if no images found
+    try:
+        collection1 = get_sentinel2_collection(bbox, period1_start, period1_end)
+    except NoDataAvailableError:
+        raise NoDataAvailableError(
+            f"No satellite imagery available for Period 1 ({period1_start} to {period1_end}). "
+            f"Try expanding the date range or using a different season.",
+            details={"period": "period1", "start": period1_start, "end": period1_end, "bbox": bbox},
+        )
     composite1 = create_composite(collection1, bbox)
     ndvi1 = compute_ndvi(composite1)
 
     # 2. Compute NDVI for Period 2 (comparison)
-    collection2 = get_sentinel2_collection(bbox, period2_start, period2_end)
+    try:
+        collection2 = get_sentinel2_collection(bbox, period2_start, period2_end)
+    except NoDataAvailableError:
+        raise NoDataAvailableError(
+            f"No satellite imagery available for Period 2 ({period2_start} to {period2_end}). "
+            f"Try expanding the date range or using a different season.",
+            details={"period": "period2", "start": period2_start, "end": period2_end, "bbox": bbox},
+        )
     composite2 = create_composite(collection2, bbox)
     ndvi2 = compute_ndvi(composite2)
 
@@ -198,16 +220,38 @@ def _generate_demo_changes(
     p2_start: str, p2_end: str,
     threshold: float,
 ) -> Dict[str, Any]:
-    """Generate synthetic change detection data for demo mode."""
+    """
+    Generate synthetic change detection data for demo mode.
+
+    Uses bbox + dates + threshold to produce varied, input-responsive results.
+    """
     import numpy as np
 
-    np.random.seed(42)
-    logger.info("Generating demo change detection data")
+    seed = _bbox_seed(bbox, f"{p1_start}{p1_end}{p2_start}{p2_end}")
+    rng = np.random.RandomState(seed)
+    logger.info("Generating demo change detection data for bbox: %s", bbox)
 
-    total_ha = 11000.0
-    loss_ha = round(total_ha * 0.08, 2)
-    gain_ha = round(total_ha * 0.03, 2)
-    stable_ha = round(total_ha - loss_ha - gain_ha, 2)
+    # Use actual bbox area
+    total_ha = _estimate_area_hectares(bbox)
+    if total_ha < 100:
+        total_ha = 11000.0
+
+    # Derive loss/gain from latitude, longitude,  and threshold
+    # Higher threshold → less detected change
+    mid_lat = abs((bbox[1] + bbox[3]) / 2)
+    mid_lon = abs((bbox[0] + bbox[2]) / 2)
+    loss_pct = max(1, min(25, 8 + mid_lat * 0.12 + mid_lon * 0.02 - threshold * 15 + rng.uniform(-4, 4)))
+    gain_pct = max(0.5, min(15, 3 + mid_lon * 0.01 + rng.uniform(-1.5, 2.5)))
+    stable_pct = 100 - loss_pct - gain_pct
+
+    loss_ha = round(total_ha * loss_pct / 100, 2)
+    gain_ha = round(total_ha * gain_pct / 100, 2)
+    stable_ha = round(total_ha * stable_pct / 100, 2)
+
+    # Derive NDVI from latitude
+    base_ndvi = max(0.3, min(0.85, 0.80 - mid_lat * 0.008))
+    p1_ndvi = round(base_ndvi + rng.uniform(-0.03, 0.03), 4)
+    p2_ndvi = round(p1_ndvi + (gain_ha - loss_ha) / total_ha, 4)
 
     return {
         "change_tile_url": None,
@@ -216,27 +260,27 @@ def _generate_demo_changes(
         "changes": {
             "forest_loss": {
                 "area_hectares": loss_ha,
-                "percentage": round(loss_ha / total_ha * 100, 1),
+                "percentage": round(loss_pct, 1),
                 "color": "#e53935",
                 "label": "Forest Loss",
             },
             "stable": {
                 "area_hectares": stable_ha,
-                "percentage": round(stable_ha / total_ha * 100, 1),
+                "percentage": round(stable_pct, 1),
                 "color": "#fdd835",
                 "label": "Stable",
             },
             "forest_gain": {
                 "area_hectares": gain_ha,
-                "percentage": round(gain_ha / total_ha * 100, 1),
+                "percentage": round(gain_pct, 1),
                 "color": "#43a047",
                 "label": "Forest Gain",
             },
         },
-        "total_area_hectares": total_ha,
+        "total_area_hectares": round(total_ha, 2),
         "net_change_hectares": round(gain_ha - loss_ha, 2),
-        "period1_mean_ndvi": 0.74,
-        "period2_mean_ndvi": 0.69,
+        "period1_mean_ndvi": p1_ndvi,
+        "period2_mean_ndvi": p2_ndvi,
         "metadata": {
             "satellite": "Sentinel-2 L2A (DEMO)",
             "period1": f"{p1_start} to {p1_end}",

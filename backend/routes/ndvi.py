@@ -6,6 +6,7 @@ Endpoints for computing and retrieving NDVI analysis results.
 
 from fastapi import APIRouter, HTTPException
 from backend.utils.validators import NDVIRequest
+from backend.utils.exceptions import NoDataAvailableError
 from backend.services.ndvi_service import calculate_ndvi
 from backend.utils.logger import get_logger
 
@@ -39,6 +40,16 @@ def get_ndvi(request: NDVIRequest):
         )
         return {"status": "success", "data": result}
 
+    except NoDataAvailableError as exc:
+        logger.warning("No data available for NDVI request: %s", exc)
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error_type": "no_data_available",
+                "message": str(exc),
+                "details": exc.details,
+            },
+        )
     except ValueError as exc:
         logger.error("Validation error in NDVI: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc))

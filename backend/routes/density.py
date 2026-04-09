@@ -6,6 +6,7 @@ Endpoints for forest canopy density classification.
 
 from fastapi import APIRouter, HTTPException
 from backend.utils.validators import DensityRequest
+from backend.utils.exceptions import NoDataAvailableError
 from backend.services.density_service import classify_density, DEFAULT_THRESHOLDS
 from backend.utils.logger import get_logger
 
@@ -38,6 +39,16 @@ def get_density(request: DensityRequest):
         )
         return {"status": "success", "data": result}
 
+    except NoDataAvailableError as exc:
+        logger.warning("No data available for density request: %s", exc)
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error_type": "no_data_available",
+                "message": str(exc),
+                "details": exc.details,
+            },
+        )
     except ValueError as exc:
         logger.error("Validation error in density: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc))

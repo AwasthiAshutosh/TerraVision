@@ -12,6 +12,7 @@ import ee
 
 from backend.gee.auth import initialize_gee, is_demo_mode
 from backend.gee.cloud_mask import mask_sentinel2_clouds
+from backend.utils.exceptions import NoDataAvailableError
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -21,6 +22,23 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 SENTINEL2_COLLECTION = "COPERNICUS/S2_SR_HARMONIZED"
 LANDSAT8_COLLECTION = "LANDSAT/LC08/C02/T1_L2"
+
+
+def _bbox_seed(bbox: List[float], extra: str = "") -> int:
+    """Derive a deterministic seed from bbox + optional extra string."""
+    import hashlib
+    raw = f"{bbox}{extra}"
+    return int(hashlib.md5(raw.encode()).hexdigest()[:8], 16)
+
+
+def _estimate_area_hectares(bbox: List[float]) -> float:
+    """Approximate area of a bbox in hectares using a simple lat/lon model."""
+    import math
+    west, south, east, north = bbox
+    mid_lat = math.radians((south + north) / 2)
+    width_km = abs(east - west) * 111.32 * math.cos(mid_lat)
+    height_km = abs(north - south) * 110.574
+    return round(width_km * height_km * 100, 2)  # km² → hectares
 
 
 def get_sentinel2_collection(
@@ -47,6 +65,9 @@ def get_sentinel2_collection(
 
     Returns:
         Cloud-masked ee.ImageCollection.
+
+    Raises:
+        NoDataAvailableError: If no images match the filters.
     """
     # Create AOI geometry
     aoi = ee.Geometry.Rectangle(bbox)
@@ -60,9 +81,32 @@ def get_sentinel2_collection(
         .map(mask_sentinel2_clouds)
     )
 
+    # Check if collection is empty
+    image_count = collection.size().getInfo()
+    if image_count == 0:
+        logger.warning(
+            "No Sentinel-2 images found for bbox=%s, dates=%s to %s (cloud<%s%%)",
+            bbox, start_date, end_date, max_cloud_pct,
+        )
+        raise NoDataAvailableError(
+            f"No Sentinel-2 satellite imagery available for the selected area "
+            f"and date range ({start_date} to {end_date}). "
+            f"This could be because:\n"
+            f"• The date range is too narrow — try expanding it\n"
+            f"• All images had cloud cover above {max_cloud_pct}% — try a different season\n"
+            f"• The area has limited satellite revisit coverage",
+            details={
+                "bbox": bbox,
+                "start_date": start_date,
+                "end_date": end_date,
+                "max_cloud_pct": max_cloud_pct,
+                "images_found": 0,
+            },
+        )
+
     logger.info(
-        "Sentinel-2 collection filtered (%s to %s)",
-        start_date, end_date,
+        "Sentinel-2 collection filtered — %d images (%s to %s)",
+        image_count, start_date, end_date,
     )
 
     return collection
@@ -138,13 +182,16 @@ def get_ndvi_composite(
 
     Returns:
         Dictionary with tile_url, stats, and metadata.
+
+    Raises:
+        NoDataAvailableError: If no satellite images are available.
     """
     initialize_gee()
 
     if is_demo_mode():
         return _generate_demo_ndvi(bbox, start_date, end_date)
 
-    # 1. Fetch filtered Sentinel-2 collection
+    # 1. Fetch filtered Sentinel-2 collection (raises NoDataAvailableError if empty)
     collection = get_sentinel2_collection(bbox, start_date, end_date)
 
     # 2. Create median composite
@@ -216,25 +263,29 @@ def _generate_demo_ndvi(
     """
     Generate synthetic NDVI data for demo mode.
 
-    Creates realistic-looking statistics without requiring GEE access.
-    The frontend will render a simulated heatmap overlay.
+    Uses bbox and dates to derive varied but deterministic results,
+    so different inputs produce visibly different statistics.
     """
     import numpy as np
 
-    np.random.seed(42)
+    seed = _bbox_seed(bbox, f"{start_date}{end_date}")
+    rng = np.random.RandomState(seed)
 
     logger.info("Generating demo NDVI data for bbox: %s", bbox)
 
-    # Simulate realistic Amazon rainforest NDVI stats
-    mean_ndvi = 0.72 + np.random.uniform(-0.05, 0.05)
+    # Derive mean NDVI from latitude (tropical regions → higher NDVI)
+    mid_lat = abs((bbox[1] + bbox[3]) / 2)
+    base_ndvi = max(0.2, min(0.85, 0.80 - mid_lat * 0.008))
+    mean_ndvi = base_ndvi + rng.uniform(-0.08, 0.08)
+
     return {
         "tile_url": None,
         "demo_mode": True,
         "stats": {
             "mean": round(mean_ndvi, 4),
-            "min": round(mean_ndvi - 0.45, 4),
-            "max": round(min(mean_ndvi + 0.18, 0.95), 4),
-            "std_dev": round(np.random.uniform(0.12, 0.18), 4),
+            "min": round(mean_ndvi - rng.uniform(0.30, 0.50), 4),
+            "max": round(min(mean_ndvi + rng.uniform(0.10, 0.22), 0.95), 4),
+            "std_dev": round(rng.uniform(0.10, 0.20), 4),
         },
         "metadata": {
             "satellite": "Sentinel-2 L2A (DEMO)",
@@ -252,33 +303,45 @@ def _generate_demo_ndvi(
                 "#d9ef8b", "#91cf60", "#1a9850",
             ],
         },
-        "demo_grid": _generate_demo_grid(bbox),
+        "demo_grid": _generate_demo_grid(bbox, start_date, end_date),
     }
 
 
-def _generate_demo_grid(bbox: List[float], grid_size: int = 50) -> List[List[float]]:
+def _generate_demo_grid(
+    bbox: List[float],
+    start_date: str = "",
+    end_date: str = "",
+    grid_size: int = 50,
+) -> List[List[float]]:
     """
     Generate a grid of simulated NDVI values for demo visualization.
 
-    Uses perlin-noise-like patterns to create realistic spatial variation
-    for the Amazon rainforest region.
+    Uses bbox-derived seed so different regions show different spatial patterns.
     """
     import numpy as np
 
-    np.random.seed(42)
+    seed = _bbox_seed(bbox, f"{start_date}{end_date}")
+    rng = np.random.RandomState(seed)
 
-    # Create base pattern (mostly dense forest with some clearings)
+    # Derive base NDVI from latitude
+    mid_lat = abs((bbox[1] + bbox[3]) / 2)
+    base_ndvi = max(0.2, min(0.85, 0.80 - mid_lat * 0.008))
+
+    # Create spatially-varied pattern
+    freq_x = 0.3 + rng.uniform(0, 0.5)
+    freq_y = 0.2 + rng.uniform(0, 0.4)
     x = np.linspace(0, 4 * np.pi, grid_size)
     y = np.linspace(0, 4 * np.pi, grid_size)
     xx, yy = np.meshgrid(x, y)
 
-    # Simulate forest canopy with clearings
-    base = 0.7 + 0.15 * np.sin(xx * 0.5) * np.cos(yy * 0.3)
-    noise = np.random.normal(0, 0.05, (grid_size, grid_size))
+    base = base_ndvi + 0.15 * np.sin(xx * freq_x) * np.cos(yy * freq_y)
+    noise = rng.normal(0, 0.05, (grid_size, grid_size))
 
-    # Add some "deforested" patches
-    clearing1 = np.exp(-((xx - 6) ** 2 + (yy - 4) ** 2) / 4) * 0.5
-    clearing2 = np.exp(-((xx - 10) ** 2 + (yy - 8) ** 2) / 3) * 0.4
+    # Add region-specific clearing patterns
+    cx1, cy1 = rng.uniform(2, 10), rng.uniform(2, 10)
+    cx2, cy2 = rng.uniform(2, 10), rng.uniform(2, 10)
+    clearing1 = np.exp(-((xx - cx1) ** 2 + (yy - cy1) ** 2) / rng.uniform(2, 6)) * rng.uniform(0.2, 0.5)
+    clearing2 = np.exp(-((xx - cx2) ** 2 + (yy - cy2) ** 2) / rng.uniform(2, 5)) * rng.uniform(0.1, 0.4)
 
     ndvi_grid = np.clip(base + noise - clearing1 - clearing2, -0.2, 0.95)
 
