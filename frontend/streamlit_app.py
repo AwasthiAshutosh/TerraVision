@@ -6,7 +6,6 @@ Main entry point for the interactive frontend. Provides:
 - NDVI analysis with gauge charts and statistics
 - Forest density classification with donut/bar charts
 - Change detection with temporal comparison
-- ML prediction results with classification breakdown
 """
 
 import sys
@@ -100,13 +99,7 @@ def main():
 
     # Check backend status
     backend_ok, backend_info = check_backend()
-    demo_mode = False
-
-    if backend_ok:
-        gee_info = backend_info.get("gee", {})
-        demo_mode = gee_info.get("demo_mode", False)
-    else:
-        demo_mode = True
+    demo_mode = not backend_ok
 
     # Render header
     st.markdown(render_header(demo_mode), unsafe_allow_html=True)
@@ -231,7 +224,7 @@ def _run_ndvi(params, bbox, center, backend_ok):
                         end_date=params["end_date"],
                         scale=params["scale"],
                     )
-                    data = response.get("data", {})
+                    data = response.get("data") or response
                 else:
                     data = _get_demo_ndvi_data()
             except Exception as e:
@@ -293,7 +286,7 @@ def _run_density(params, bbox, center, backend_ok):
                         end_date=params["end_date"],
                         scale=params["scale"],
                     )
-                    data = response.get("data", {})
+                    data = response.get("data") or response
                 else:
                     data = _get_demo_density_data()
             except Exception as e:
@@ -361,7 +354,7 @@ def _run_change_detection(params, bbox, center, backend_ok):
                         scale=params["scale"],
                         threshold=params["change_threshold"],
                     )
-                    data = response.get("data", {})
+                    data = response.get("data") or response
                 else:
                     data = _get_demo_change_data()
             except Exception as e:
@@ -479,7 +472,12 @@ def _get_demo_change_data():
 
 
 # ---------------------------------------------------------------------------
-# Footer
+# Entry Point
+# ---------------------------------------------------------------------------
+main()
+
+# ---------------------------------------------------------------------------
+# Footer (rendered after main content)
 # ---------------------------------------------------------------------------
 logo_footer = get_logo_html(width="1rem", vertical_align="middle", margin_right="4px")
 st.markdown(f"""
@@ -489,9 +487,3 @@ st.markdown(f"""
     Built with FastAPI + Streamlit
 </div>
 """, unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
-# Entry Point
-# ---------------------------------------------------------------------------
-main()

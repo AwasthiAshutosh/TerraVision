@@ -2,7 +2,7 @@
 API Client Utility
 
 HTTP client for communicating with the FastAPI backend from
-the Streamlit frontend. Uses httpx for async support.
+the Streamlit frontend. Uses requests for synchronous API calls.
 """
 
 import requests
@@ -15,50 +15,44 @@ def call_api(
     endpoint: str,
     method: str = "POST",
     data: Optional[Dict] = None,
-    timeout: int = 30,
+    timeout: int = 60,   # increased timeout
 ) -> Dict[str, Any]:
-    """
-    Call the FastAPI backend.
 
-    Args:
-        endpoint: API endpoint path (e.g., "/api/ndvi").
-        method: HTTP method ("GET" or "POST").
-        data: Request body for POST requests.
-        timeout: Request timeout in seconds.
-
-    Returns:
-        Response JSON as dictionary.
-
-    Raises:
-        ConnectionError: If the backend is not reachable.
-        Exception: For other API errors.
-    """
     url = f"{BASE_URL}{endpoint}"
+    response = None
 
-    try:
-        if method.upper() == "GET":
-            response = requests.get(url, timeout=timeout)
-        else:
-            response = requests.post(url, json=data, timeout=timeout)
-
-        response.raise_for_status()
+    for attempt in range(2):  # retry once (important for Render)
         try:
+            if method.upper() == "GET":
+                response = requests.get(url, timeout=timeout)
+            else:
+                response = requests.post(url, json=data, timeout=timeout)
+
+            response.raise_for_status()
+
             return response.json()
-        except Exception:
-            return {"error": "Invalid JSON response from backend"}
 
-    except requests.ConnectionError:
-        raise ConnectionError(
-            f"Cannot connect to backend at {BASE_URL}. "
-            "Make sure the FastAPI server is running."
-        )
-    except requests.HTTPError as exc:
-        error_detail = "Unknown error"
-        try:
-            error_detail = exc.response.json().get("detail", str(exc))
-        except Exception:
-            error_detail = str(exc)
-        raise Exception(f"API Error: {error_detail}")
+        except requests.exceptions.Timeout:
+            if attempt == 0:
+                continue  # retry once
+            raise Exception("⏳ Backend timeout (Render may be waking up). Try again.")
+
+        except requests.ConnectionError:
+            raise ConnectionError(
+                f"❌ Cannot connect to backend at {BASE_URL}"
+            )
+
+        except requests.HTTPError as exc:
+            try:
+                error_detail = exc.response.json().get("detail", str(exc))
+            except Exception:
+                error_detail = str(exc)
+            raise Exception(f"🚨 API Error: {error_detail}")
+
+        except ValueError:
+            # JSON decode error
+            resp_text = response.text if response is not None else "(no response)"
+            raise Exception(f"🚨 Invalid JSON response: {resp_text}")
 
 
 def get_ndvi(bbox, start_date, end_date, scale=100):
@@ -101,9 +95,8 @@ def get_change_detection(bbox, p1_start, p1_end, p2_start, p2_end, scale=100, th
 
 
 def check_backend_health():
-    """Check if the backend is running and healthy."""
     try:
-        result = call_api("/", method="GET", timeout=5)
+        result = call_api("/health", method="GET", timeout=5)
         return True, result
     except Exception as exc:
         return False, str(exc)
