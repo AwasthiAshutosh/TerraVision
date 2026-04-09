@@ -31,6 +31,8 @@ This system functions as a simplified version of **Global Forest Watch**, provid
 2. **Forest Density Classification** — Classify pixels into 5 canopy density categories
 3. **Change Detection** — Detect deforestation, degradation, and regrowth between time periods
 4. **Interactive Dashboard** — Streamlit-based UI with interactive maps, charts, and downloads
+5. **Input-Responsive Fallback** — Mathematically generates unique, location-mapped data when Earth Engine is offline.
+6. **Graceful Error Handling** — Distinguishes between internal failures and satellite data unavailability with descriptive UI warnings.
 
 ---
 
@@ -254,6 +256,7 @@ uvicorn backend.app:app --host 0.0.0.0 --port 8000
 | `GEE_PROJECT_ID` | GCP project with GEE API | Required |
 | `BACKEND_HOST` | Backend host | 127.0.0.1 |
 | `BACKEND_PORT` | Backend port | 8000 |
+| `API_BASE_URL` | Override backend URL for the frontend | `http://{BACKEND_HOST}:{BACKEND_PORT}` |
 | `DEMO_MODE` | Use synthetic data | false |
 | `LOG_LEVEL` | Logging level | INFO |
 
